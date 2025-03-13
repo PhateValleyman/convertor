@@ -44,34 +44,12 @@ handle_error() {
     fi
 }
 
-# Function to check if a file exists and is readable
-validate_input_file() {
-    local input_file=$1
-    if [[ ! -f "$input_file" || ! -r "$input_file" ]]; then
-        handle_error 1 "Input file '$input_file' does not exist or is not readable."
-    fi
-}
-
-# Function to confirm overwrite if output file exists
-confirm_overwrite() {
-    local output_file=$1
-    if [[ -f "$output_file" ]]; then
-        echo -e "${YELLOW}Warning: Output file '$output_file' already exists.${NC}"
-        read -p "Do you want to overwrite it? (y/n): " choice
-        if [[ "$choice" != "y" && "$choice" != "Y" ]]; then
-            echo -e "${BLUE}Skipping conversion for '$output_file'.${NC}"
-            return 1
-        fi
-    fi
-    return 0
-}
-
 # Function to convert video
 convert_video() {
     local input_file=$1
     local output_file=$2
     echo -e "${BLUE}Converting $input_file to $output_file...${NC}"
-
+    
     mkdir -p "$(dirname "$output_file")"
     ffmpeg -i "$input_file" \
         -c:v libx264 \
@@ -86,7 +64,7 @@ convert_video() {
         -b:a 128k \
         -movflags +faststart \
         "$output_file"
-
+    
     handle_error $? "Failed to convert $input_file"
     echo -e "${GREEN}Successfully converted $input_file to $output_file${NC}"
 }
@@ -142,10 +120,6 @@ elif [ ${#OUTPUT_FILES[@]} -eq 1 ]; then
     # Single output specified, check if it's a folder
     if [[ -d "${OUTPUT_FILES[0]}" ]]; then
         OUTPUT_FOLDER="${OUTPUT_FILES[0]}"
-        # Ensure the folder path ends with a '/'
-        if [[ "$OUTPUT_FOLDER" != */ ]]; then
-            OUTPUT_FOLDER="$OUTPUT_FOLDER/"
-        fi
     else
         # Single output file specified, but multiple inputs (use as folder)
         if [ ${#INPUT_FILES[@]} -gt 1 ]; then
@@ -160,17 +134,12 @@ fi
 # Convert videos
 for i in "${!INPUT_FILES[@]}"; do
     INPUT_FILE="${INPUT_FILES[$i]}"
-    validate_input_file "$INPUT_FILE"
-
     if [ ${#OUTPUT_FILES[@]} -gt 1 ]; then
         OUTPUT_FILE="${OUTPUT_FILES[$i]}"
     else
         OUTPUT_FILE="$OUTPUT_FOLDER/converted-$(basename "$INPUT_FILE" .${INPUT_FILE##*.}).mp4"
     fi
-
-    if confirm_overwrite "$OUTPUT_FILE"; then
-        convert_video "$INPUT_FILE" "$OUTPUT_FILE"
-    fi
+    convert_video "$INPUT_FILE" "$OUTPUT_FILE"
 done
 
 exit 0
